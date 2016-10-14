@@ -1,8 +1,9 @@
-// avm.c
+/ avm.c
 //
 // AVM in C
 //
-// This is an implementation in C for experimenation purposes.
+// This is an implementation of AVM in C for experimenation purposes.
+// It is both an AVM interpretr and an assembler for the instruction set.
 //
 // (C) 2016 David J. Goehrig
 // All rights reserved.
@@ -36,6 +37,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -46,6 +48,8 @@
 #define PTR_MASK 0x0f
 #define RAM_SIZE 1024*4096
 #define LITERAL_MASK 0x8000000000000000
+#define MAX_FILES 2
+#define MAX_WORDS 1024
 
 struct {
 	long value;
@@ -105,7 +109,7 @@ void dump_opcodes() {
 		printf("%s %d\n", opcodes[i].name, opcodes[i].value);
 }
 
-void  boot() {
+void boot() {
 	long i = 0;
 	registers.is = 0;
 	registers.ip = 0;
@@ -120,21 +124,48 @@ void  boot() {
 	if (memory == MAP_FAILED) exit(3);
 }
 
+int filep = 0;
+struct {
+	char* filename;
+	int fd;
+	size_t size;
+} files[MAX_FILES];
+
+int file(char* filename) {
+	int i = 0;
+	for (i = 0; i < filep; ++i) 
+		if (!strcmp(filename,files[i].filename)) return i;
+	printf("File not found %s\n", filename);
+	exit(6);
+}
+
 char* load(char* filename) {
 	struct stat st;
 	long fd = open(filename,O_RDWR);
 	if (fd < 0) exit(1);
 	fstat(fd,&st);
-	size_t size = st.st_size;
-	char* program = mmap(0,size,PROT_READ|PROT_WRITE,MAP_PRIVATE,fd,0);
+	char* program = mmap(0,st.st_size,PROT_READ|PROT_WRITE,MAP_SHARED,fd,0);
 	if (program == MAP_FAILED) exit(2);
+	files[filep].filename = filename;
+	files[filep].fd = fd;
+	files[filep].size = st.st_size;
+	++filep;
 	return program;		
 }
 
-void interpret(char* program) {
+void save(char* filename, char* data) {
+	int i = file(filename);
+	fstat(files[i].fd,&st);
+	msync(data,files[i].size,MS_SYNC);
+	munmap(data,files[i].size);
+	close(files[i].fd);
+}
+
+int interpret(char* filename) {
 	int op;
 	long a, b;
-	long* rom = (long*)program;
+	long* rom = (long*)load(filename);
+	boot();
 fetch:
 	registers.is = rom[registers.ip];					// we have up to 8 instructions in the is register.
 	++registers.ip;
@@ -324,18 +355,51 @@ next:
 		break;
 
 	default:
-		break;
-
+		printf("Unknown instruction\n");
+		return 0;
 	}
 	registers.is = registers.is >> 8;	// right shift 1 op
 	goto next;
 }
 
+int last = -1; 
+struct {
+	char label[32];
+	long offset;
+	int line;
+} dictionary[MAX_WORDS];
+
+long lookup(char* word) {
+	int i;
+	for (i = last; i >= 0; --i) {
+		
+	}
+}
+
+void define(char* word, long offset) {
+	++last;
+	dictionary[last].label = word;
+	dictionary[last].offset = offset;
+}
+
+int compile(char* filename, char* imagename) {
+	char* program = load(filename);
+	char* rom = load(imagename);
+	int p = file(filename);
+	int line = 0;
+	int i = 0;
+	size_t size = files[p].size;
+	for (i = 0; i < size; ++i) {
+		
+
+	}
+	save(imagename,rom);
+	return 0;
+}
+
 int main(int argc, char** argv) {
 	if (!argv[1] || ! *argv[1]) return 0;
-	char* program = load(argv[1]);
-	boot();
-	interpret(program);
-	return 0;
+	if (argc == 3) return compile(argv[1],argv[2]);
+	return interpret(argv[1]);
 }
 
