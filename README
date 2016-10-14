@@ -1,0 +1,80 @@
+Another Virtual Machine
+=======================
+
+This is Another Virtual Machine (AVM) and it is an incremental variation on another MISC.
+
+
+Opcodes
+-------
+
+The opcodes mnemonics have been chosen to be familiar to most people:
+
+	nop	no operation					| Flow Control
+	call	call a subroutine				|
+	ret	return from a subroutine			|
+	if	branch to tos if nos is true			|	
+	
+	-	negate tos					| Math
+	+ 	add tos to nos					|
+	*	multiply					|
+	/	divide with remainder				|	
+
+	~	not (binary compliment)				| Logic
+	&	and						|
+	|	or						|
+	^	xor						|
+	
+	push	put on return stack				| Stack
+	pop	fetch from return stack				|
+	dup	duplicate tos					|
+	drop	drop tos					|
+	swap	swap tos and nos				|
+	over	duplicate nos					|
+	
+	!	store to address dst, increment dst		| Memory
+	+!	add to address dst increment dst		|
+	@	fetch from address src, increment src		|
+	+@	add from address src, increment src		|
+	>d	set dst						|
+	d>	fetch dst					|
+	>s	set src						|
+	s>	fetch src					|
+
+	=	true if nos = tos				| Test
+	>	true if nos > tos				|
+	<	true if nos < tos				|
+	true	all bits high 	(aka -1)			|
+	false	all bits low	(aka 0)				|
+	
+	lit	literal value					| Literals
+
+
+Registers Files
+---------------
+
+The AVM has a couple different registers and register files.
+
+	is	instruction register
+	ip	instruction pointer
+	ds	data stack file
+	dsp	data stack pointer
+	rs	return stack file
+	rsp	return stack pointer
+	dst	destination address
+	src	source address
+	flg	flags register
+
+There are two conventional virtual registers that are defined as:
+
+	tos	(ds + dsp) modulo SIZEOF(ds)
+	nos	(ds + dsp - 1) modulo SIZEOF(ds)
+
+In terms of implementation, the modulo math is acomplished by having
+the size of the stack be a power of 2 and the register have the same
+number of bits.  The implementation can trap an overflow in the flags
+register, but in general the data stack is considered circular.
+
+
+Instruction Encoding
+--------------------
+
