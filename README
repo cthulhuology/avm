@@ -46,7 +46,7 @@ The opcodes mnemonics have been chosen to be familiar to most people:
 	true	all bits high 	(aka -1)			|
 	false	all bits low	(aka 0)				|
 	
-	lit	literal value					| Literals
+	flag	flag values					| Flags
 
 
 Registers Files

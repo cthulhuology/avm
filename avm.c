@@ -45,9 +45,10 @@
 #define PTR_WIDTH 4
 #define PTR_MASK 0x0f
 #define RAM_SIZE 1024*4096
+#define LITERAL_MASK 0x8000000000000000
 
 struct {
-	int value;
+	long value;
 	char name[8];
 } opcodes[32] = {
 	{ 0, "nop" },
@@ -81,31 +82,31 @@ struct {
 	{ 28, "<" },
 	{ 29, "true" },
 	{ 30, "false" },
-	{ 31, "lit" }
+	{ 31, "flag" }
 };
 
 struct {
-	int is;
-	int ip;
-	int dsp;
-	int rsp;
-	int dst;
-	int src;
-	int flg;
-	int ds[SIZE_OF_STACK];
-	int rs[SIZE_OF_STACK];
+	long is;
+	long ip;
+	long dsp;
+	long rsp;
+	long dst;
+	long src;
+	long flg;
+	long ds[SIZE_OF_STACK];
+	long rs[SIZE_OF_STACK];
 } registers;
 
 char* memory;
 
 void dump_opcodes() {
-	int i = 0;
+	long i = 0;
 	for (i = 0; i < 32; ++i) 
 		printf("%s %d\n", opcodes[i].name, opcodes[i].value);
 }
 
 void  boot() {
-	int i = 0;
+	long i = 0;
 	registers.is = 0;
 	registers.ip = 0;
 	registers.dsp = 0;
@@ -121,20 +122,214 @@ void  boot() {
 
 char* load(char* filename) {
 	struct stat st;
-	int fd = open(filename,O_RDWR);
+	long fd = open(filename,O_RDWR);
 	if (fd < 0) exit(1);
 	fstat(fd,&st);
 	size_t size = st.st_size;
 	char* program = mmap(0,size,PROT_READ|PROT_WRITE,MAP_PRIVATE,fd,0);
 	if (program == MAP_FAILED) exit(2);
-	printf("Loaded %s\n", filename);	
 	return program;		
 }
 
 void interpret(char* program) {
-	printf("Interpreting program\n");	
-}
+	int op;
+	long a, b;
+	long* rom = (long*)program;
+fetch:
+	registers.is = rom[registers.ip];					// we have up to 8 instructions in the is register.
+	++registers.ip;
+literal:
+	if (registers.is & LITERAL_MASK) {
+		registers.dsp = (registers.dsp + 1) & PTR_MASK;			// increment stack pointer
+		registers.ds[registers.dsp] = registers.is & ~LITERAL_MASK;	// literals are always positive numbers
+		goto fetch;
+	}
+next:
+	switch (registers.is & 0xff) {
 
+	case 0:	// nop
+		goto fetch;
+
+	case 1:	// call
+		registers.rsp = (registers.rsp + 1) & PTR_MASK;			// increment return stack pointer
+		registers.rs[registers.rsp] = registers.ip;			// save next instruction pointer
+		registers.ip -= registers.ds[registers.dsp];			// adjust instruction poitner by tos
+		registers.dsp = (registers.dsp - 1) & PTR_MASK;			// decrement data stack pointer
+		goto fetch;
+
+	case 2:	// ret
+		registers.ip = registers.rs[registers.rsp];			// restore instruction pointer
+		registers.rsp = (registers.rsp - 1) & PTR_MASK;			// decrement return stack pointer
+		goto fetch;
+
+	case 3:	// if
+		if (registers.ds[(registers.dsp - 1) & PTR_MASK]) {		// if nos is not false
+			registers.ip -= registers.ds[registers.dsp];		// relative branch instruction pointer
+			registers.dsp = (registers.dsp - 2) & PTR_MASK;		// drop both tos and nos
+			goto fetch;
+		}
+		registers.dsp = (registers.dsp - 2) & PTR_MASK;			// otherwise drop both tos and nos
+		break;
+
+	case 4:	// neg
+		registers.ds[registers.dsp] = -registers.ds[registers.dsp];
+		break;
+
+	case 5: // add
+		registers.ds[(registers.dsp - 1) & PTR_MASK ] += registers.ds[registers.dsp];
+		registers.dsp = (registers.dsp -1) & PTR_MASK;
+		break;
+
+	case 6: // mul
+		registers.ds[(registers.dsp - 1) & PTR_MASK ] *= registers.ds[registers.dsp];
+		registers.dsp = (registers.dsp -1) & PTR_MASK;
+		break;
+
+	case 7: // div
+		a = registers.ds[(registers.dsp - 1) & PTR_MASK];
+		b = registers.ds[registers.dsp];
+		registers.ds[(registers.dsp-1)&PTR_MASK] = a / b;
+		registers.ds[registers.dsp] = a % b;
+		break;
+
+	case 8: // not
+		registers.ds[registers.dsp] = ~registers.ds[registers.dsp];
+		break;
+
+	case 9: // and
+		registers.ds[(registers.dsp - 1) & PTR_MASK ] &= registers.ds[registers.dsp];
+		registers.dsp = (registers.dsp -1) & PTR_MASK;
+		break;
+
+	case 10: // or
+		registers.ds[(registers.dsp - 1) & PTR_MASK ] |= registers.ds[registers.dsp];
+		registers.dsp = (registers.dsp -1) & PTR_MASK;
+		break;
+
+	case 11: // xor
+		registers.ds[(registers.dsp - 1) & PTR_MASK ] ^= registers.ds[registers.dsp];
+		registers.dsp = (registers.dsp -1) & PTR_MASK;
+		break;
+
+	case 12: // push
+		registers.rsp = (registers.rsp + 1) & PTR_MASK;
+		registers.rs[registers.rsp] = registers.ds[registers.dsp];
+		registers.dsp = (registers.dsp - 1) & PTR_MASK;
+		break;
+
+	case 13: // pop
+		registers.dsp = (registers.dsp + 1) & PTR_MASK;
+		registers.ds[registers.dsp] = registers.rs[registers.rsp];
+		registers.rsp = (registers.rsp - 1) & PTR_MASK;
+		break;
+
+	case 14: // dup
+		registers.dsp = (registers.dsp + 1) & PTR_MASK;
+		registers.ds[registers.dsp] = registers.ds[(registers.dsp-1)&PTR_MASK];
+		break;
+
+	case 15: // drop
+		registers.dsp = (registers.dsp - 1) & PTR_MASK;
+		break;
+
+	case 16: // swap
+		a = registers.ds[(registers.dsp -1) & PTR_MASK];
+		b = registers.ds[registers.dsp];
+		registers.ds[(registers.dsp -1) & PTR_MASK] = b;
+		registers.ds[registers.dsp] = a;
+		break;
+
+	case 17: // over
+		registers.dsp = (registers.dsp + 1) & PTR_MASK;
+		registers.ds[registers.dsp] = registers.ds[(registers.dsp-2)&PTR_MASK];
+		break;
+
+	case 18: // store
+		memory[registers.dst] = registers.ds[registers.dsp];
+		++registers.dst;
+		registers.dsp = (registers.dsp - 1) & PTR_MASK;
+		break;
+
+	case 19: // plus store
+		memory[registers.dst] += registers.ds[registers.dsp];
+		++registers.dst;
+		registers.dsp = (registers.dsp - 1) & PTR_MASK;
+	break;
+
+	case 20: // fetch
+		registers.dsp = (registers.dsp + 1) & PTR_MASK;
+		registers.ds[registers.dsp] = memory[registers.src];
+		++registers.src;
+		break;
+
+	case 21: // plus fetch
+		registers.ds[registers.dsp] += memory[registers.src];
+		++registers.src;
+		break;
+
+	case 22: // set dst
+		registers.dst = registers.ds[registers.dsp];
+		registers.dsp = (registers.dsp - 1) & PTR_MASK;
+		break;
+
+	case 23: // get dst
+		registers.dsp = (registers.dsp + 1) & PTR_MASK;
+		registers.ds[registers.dsp] = registers.dst;
+		break;
+
+	case 24: // set src
+		registers.src = registers.ds[registers.dsp];
+		registers.dsp = (registers.dsp - 1) & PTR_MASK;
+		break;
+
+	case 25: // get src
+		registers.dsp = (registers.dsp + 1) & PTR_MASK;
+		registers.ds[registers.dsp] = registers.src;
+		break;
+
+	case 26: // equals
+		registers.ds[(registers.dsp - 1) & PTR_MASK] = 
+			registers.ds[(registers.dsp - 1) & PTR_MASK] == 
+			registers.ds[registers.dsp] ? -1 : 0;
+		registers.dsp = (registers.dsp - 1) & PTR_MASK;
+		break;
+
+	case 27: // greater than
+		registers.ds[(registers.dsp - 1) & PTR_MASK] = 
+			registers.ds[(registers.dsp - 1) & PTR_MASK] > 
+			registers.ds[registers.dsp] ? -1 : 0;
+		registers.dsp = (registers.dsp - 1) & PTR_MASK;
+		break;
+
+	case 28: // less than
+		registers.ds[(registers.dsp - 1) & PTR_MASK] = 
+			registers.ds[(registers.dsp - 1) & PTR_MASK] < 
+			registers.ds[registers.dsp] ? -1 : 0;
+		registers.dsp = (registers.dsp - 1) & PTR_MASK;
+		break;
+
+	case 29: // true
+		registers.dsp = (registers.dsp + 1) & PTR_MASK;
+		registers.ds[registers.dsp] = -1;
+		break;
+
+	case 30: // false
+		registers.dsp = (registers.dsp + 1) & PTR_MASK;
+		registers.ds[registers.dsp] = 0;
+		break;
+
+	case 31: // flag
+		registers.dsp = (registers.dsp + 1) & PTR_MASK;
+		registers.ds[registers.dsp] = registers.flg;
+		break;
+
+	default:
+		break;
+
+	}
+	registers.is = registers.is >> 8;	// right shift 1 op
+	goto next;
+}
 
 int main(int argc, char** argv) {
 	if (!argv[1] || ! *argv[1]) return 0;
