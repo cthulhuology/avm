@@ -9,44 +9,44 @@ Opcodes
 
 The opcodes mnemonics have been chosen to be familiar to most people:
 
-	nop	no operation					| Flow Control
-	call	call a subroutine				|
-	ret	return from a subroutine			|
-	if	branch to tos if nos is true			|	
+	00	nop	no operation					| Flow Control
+	01	.	call a subroutine				|
+	02	;	return from a subroutine			|
+	03	?	branch to tos if nos is true			|	
 	
-	-	negate tos					| Math
-	+ 	add tos to nos					|
-	*	multiply					|
-	/	divide with remainder				|	
+	04	-	negate tos					| Math
+	05	+ 	add tos to nos					|
+	06	*	multiply					|
+	07	/	divide with remainder				|	
 
-	~	not (binary compliment)				| Logic
-	&	and						|
-	|	or						|
-	^	xor						|
+	08	~	not (binary compliment)				| Logic
+	09	&	and						|
+	0a	|	or						|
+	0b	^	xor						|
 	
-	push	put on return stack				| Stack
-	pop	fetch from return stack				|
-	dup	duplicate tos					|
-	drop	drop tos					|
-	swap	swap tos and nos				|
-	over	duplicate nos					|
+	0c	push	put on return stack				| Stack
+	0d	pop	fetch from return stack				|
+	0e	dup	duplicate tos					|
+	0f	drop	drop tos					|
+	10	swap	swap tos and nos				|
+	11	over	duplicate nos					|
 	
-	!	store to address dst, increment dst		| Memory
-	+!	add to address dst increment dst		|
-	@	fetch from address src, increment src		|
-	+@	add from address src, increment src		|
-	>d	set dst						|
-	d>	fetch dst					|
-	>s	set src						|
-	s>	fetch src					|
+	12	!	store to address dst, increment dst		| Memory
+	13	+!	add to address dst increment dst		|
+	14	@	fetch from address src, increment src		|
+	15	+@	add from address src, increment src		|
+	16	>d	set dst						|
+	17	d>	fetch dst					|
+	18	>s	set src						|
+	19	s>	fetch src					|
 
-	=	true if nos = tos				| Test
-	>	true if nos > tos				|
-	<	true if nos < tos				|
-	true	all bits high 	(aka -1)			|
-	false	all bits low	(aka 0)				|
+	1a	=	true if nos = tos				| Test
+	1b	>	true if nos > tos				|
+	1c	<	true if nos < tos				|
+	1d	true	all bits high 	(aka -1)			|
+	1e	false	all bits low	(aka 0)				|
 	
-	flag	flag values					| Flags
+	1f	flag	flag values					| Flags
 
 
 Registers Files

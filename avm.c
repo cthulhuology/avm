@@ -1,4 +1,4 @@
-/ avm.c
+// avm.c
 //
 // AVM in C
 //
@@ -35,6 +35,7 @@
 // THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include <endian.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -47,50 +48,53 @@
 #define PTR_WIDTH 4
 #define PTR_MASK 0x0f
 #define RAM_SIZE 1024*4096
-#define LITERAL_MASK 0x8000000000000000
+#define LITERAL_MASK 0x8000000000000000LL
 #define MAX_FILES 2
 #define MAX_WORDS 1024
+#define MAX_OPCODE 32
+#define REGISTER_WIDTH 8
 
 struct {
 	long value;
 	char name[8];
+	long len;
 } opcodes[32] = {
-	{ 0, "nop" },
-	{ 1, "call" },
-	{ 2, "ret" },
-	{ 3, "if" },
-	{ 4, "-" },
-	{ 5, "+" },
-	{ 6, "*" },
-	{ 7, "/" },
-	{ 8, "~" },
-	{ 9, "&" },
-	{ 10, "|" },
-	{ 11, "^" },
-	{ 12, "push" },
-	{ 13, "pop" },
-	{ 14, "dup" },
-	{ 15, "drop" },
-	{ 16, "swap" },
-	{ 17, "over" },
-	{ 18, "!" },
-	{ 19, "+!" },
-	{ 20, "@" },
-	{ 21, "+@" },
-	{ 22, ">d" },
-	{ 23, "d>" },
-	{ 24, ">s" },
-	{ 25, "s>" },
-	{ 26, "=" },
-	{ 27, ">" },
-	{ 28, "<" },
-	{ 29, "true" },
-	{ 30, "false" },
-	{ 31, "flag" }
+	{ 0, "nop", 3 },
+	{ 1, ".", 1 },
+	{ 2, ";", 1 },
+	{ 3, "?", 1 },
+	{ 4, "-", 1 },
+	{ 5, "+", 1 },
+	{ 6, "*", 1 },
+	{ 7, "/", 1 },
+	{ 8, "~", 1 },
+	{ 9, "&", 1 },
+	{ 10, "|", 1 },
+	{ 11, "^", 1 },
+	{ 12, "push", 4 },
+	{ 13, "pop", 3 },
+	{ 14, "dup", 3 },
+	{ 15, "drop", 4 },
+	{ 16, "swap", 4 },
+	{ 17, "over", 4 },
+	{ 18, "!", 1 },
+	{ 19, "+!", 2 },
+	{ 20, "@", 1 },
+	{ 21, "+@", 2 },
+	{ 22, ">d", 2 },
+	{ 23, "d>", 2 },
+	{ 24, ">s", 2 },
+	{ 25, "s>", 2 },
+	{ 26, "=", 1 },
+	{ 27, ">", 1 },
+	{ 28, "<", 1 },
+	{ 29, "true", 4 },
+	{ 30, "false", 5 },
+	{ 31, "flag", 4 }
 };
 
 struct {
-	long is;
+	uint64_t is;
 	long ip;
 	long dsp;
 	long rsp;
@@ -139,9 +143,24 @@ int file(char* filename) {
 	exit(6);
 }
 
+char* loadro(char* filename) {
+	struct stat st;
+	int fd = open(filename,O_RDONLY);
+	if (fd < 0) exit(1);
+	fstat(fd,&st);
+	char* program = mmap(0,st.st_size,PROT_READ,MAP_SHARED,fd,0);
+	if (program == MAP_FAILED) exit(2);
+	files[filep].filename = filename;
+	files[filep].fd = fd;
+	files[filep].size = st.st_size;
+	++filep;
+	return program;		
+
+}
+
 char* load(char* filename) {
 	struct stat st;
-	long fd = open(filename,O_RDWR);
+	int fd = open(filename,O_RDWR);
 	if (fd < 0) exit(1);
 	fstat(fd,&st);
 	char* program = mmap(0,st.st_size,PROT_READ|PROT_WRITE,MAP_SHARED,fd,0);
@@ -154,6 +173,7 @@ char* load(char* filename) {
 }
 
 void save(char* filename, char* data) {
+	struct stat st;
 	int i = file(filename);
 	fstat(files[i].fd,&st);
 	msync(data,files[i].size,MS_SYNC);
@@ -164,21 +184,26 @@ void save(char* filename, char* data) {
 int interpret(char* filename) {
 	int op;
 	long a, b;
-	long* rom = (long*)load(filename);
+	uint64_t* rom = (uint64_t*)load(filename);
 	boot();
 fetch:
-	registers.is = rom[registers.ip];					// we have up to 8 instructions in the is register.
+	registers.is = rom[registers.ip];				// we have up to 8 instructions in the is register.
 	++registers.ip;
 literal:
+	fprintf(stderr,"Literal %p\n", registers.is & ~LITERAL_MASK);
+	fprintf(stderr,"Literal Test %p\n", registers.is & LITERAL_MASK);
 	if (registers.is & LITERAL_MASK) {
+		fprintf(stderr,"Literal %ld", registers.is & ~LITERAL_MASK);
 		registers.dsp = (registers.dsp + 1) & PTR_MASK;			// increment stack pointer
 		registers.ds[registers.dsp] = registers.is & ~LITERAL_MASK;	// literals are always positive numbers
 		goto fetch;
 	}
 next:
+	fprintf(stderr,"instr: %d\n", registers.is & 0xff);
 	switch (registers.is & 0xff) {
 
 	case 0:	// nop
+		fprintf(stderr,"nop\n");
 		goto fetch;
 
 	case 1:	// call
@@ -355,7 +380,7 @@ next:
 		break;
 
 	default:
-		printf("Unknown instruction\n");
+		printf("Unknown instruction %d\n",op);
 		return 0;
 	}
 	registers.is = registers.is >> 8;	// right shift 1 op
@@ -365,34 +390,207 @@ next:
 int last = -1; 
 struct {
 	char label[32];
+	long len;
 	long offset;
 	int line;
 } dictionary[MAX_WORDS];
 
-long lookup(char* word) {
-	int i;
-	for (i = last; i >= 0; --i) {
-		
-	}
+long lookup(char* word, int len) {	// return the index of the matching dictionary entry
+	long i;
+	for (i = last; i >= 0; --i)
+		if(dictionary[i].len == len && !strncmp(word,dictionary[i].label,len))
+			return i;
+	return -1;
 }
 
-void define(char* word, long offset) {
+long opcode(char* word, int len) {
+	long i;
+	for (i = 0; i < MAX_OPCODE; ++i)
+		if (opcodes[i].len == len && !strncmp(word, opcodes[i].name,len))
+			return i;
+	return -1;	
+}
+
+void define(char* word, long len, long addr) {
 	++last;
-	dictionary[last].label = word;
-	dictionary[last].offset = offset;
+	strncpy(dictionary[last].label,word,len);
+	dictionary[last].len = len;
+	dictionary[last].offset = addr;
+}
+
+int any(char* stream, long offset, int (*test)(char*,long)) {
+	int i;
+	for (i = offset; stream[i]; ++i)
+		if (!test(stream,i))
+			return i;
+	return i;
+}
+
+int all(char* stream, long offset, int l, int (*test)(char*,long)) {
+	int i;
+	for (i = offset; stream[i] && i < l ; ++i)
+		if (!test(stream,i))
+			return 0;
+	return 1;
+}
+
+int until(char* stream, long offset, int(*test)(char*,long)) {
+	int i;
+	for (i = offset; stream[i]; ++i)
+		if (test(stream,i))
+			return i;
+	return i;
+}
+
+int eol(char* stream, long offset) {
+	char c = stream[offset];
+	return c == '\r' || c == '\n';
+}
+
+int space(char* stream, long offset) {
+	char c = stream[offset];
+	return c == ' ' || c == '\t' || c == '\r' || c == '\n';
+}
+
+int alpha(char* stream, long offset) {
+	char c = stream[offset];
+	return ('a' <= c && c <= 'z') || ('A' <= c  && c <= 'Z');
+}
+
+int num(char* stream, long offset) {
+	char c = stream[offset];
+	return ('0' <= c && c <= '9');
+}
+
+long skip_space(char* stream, long offset) {
+	return any(stream,offset,space);
+}
+
+long is_number(char* stream, long len) {
+	return all(stream,0,len,num);
+}
+
+long token(char* stream, long offset) {
+	return until(stream,offset,space);
+}
+
+void print(char* stream, long i, long l) {
+	write(1,&stream[i],l-i);
+}
+
+void ln() {
+	write(1,"\n",1);
+}
+
+int colon(char* stream, int offset) {
+	return stream[offset] == ':';
+}
+
+long align(char* image, uint64_t instr, long offset) {
+	if(!instr) return offset;		// instr is all nops	
+	uint64_t* ptr = (uint64_t*)&image[offset];
+	*ptr = instr;
+	return offset + REGISTER_WIDTH;	
+}
+
+
+long literal(char* image, long offset, long value) {
+	uint64_t* ptr = (uint64_t*)&image[offset];
+	*ptr = value | LITERAL_MASK;
+	return offset + REGISTER_WIDTH;
 }
 
 int compile(char* filename, char* imagename) {
-	char* program = load(filename);
+	char* program = loadro(filename);
 	char* rom = load(imagename);
 	int p = file(filename);
 	int line = 0;
 	int i = 0;
+	int l = 0;
 	size_t size = files[p].size;
-	for (i = 0; i < size; ++i) {
-		
+	long offset = 0;
+	long word = 0;
+	char error[1024];
+	long done = 0;
+	long addr = 0;
+	long op = 0;
+	uint64_t instr = 0;
+	long count = 0;
+	long jump = 0;
+	
+	while(!done) {
+		if (i >= size) break;
+		i = skip_space(program,i);
 
+		if (i >= size) break;
+		l = token(program,i);
+
+		if (l-i == 1 && colon(program,i)) {
+			i = skip_space(program,l);
+			l = token(program,i);
+			define(program+i,l-i,offset);
+			print("define: ",0,8);
+			print(program,i,l);
+			ln();
+			i = l;
+			continue;
+		}
+
+		addr = lookup(&program[i],l-i);
+		if (addr >= 0) {
+			// do create a label literal
+			offset = align(rom,instr,offset);
+			jump = offset - addr;
+			if ( jump < 0 ) {		// forward jump
+				offset = literal(rom,offset,-jump);
+				offset += 8;
+				instr = opcode("-",1);	// append a negate operation
+				count = 1;
+			} else {			// backwards jump, common case
+				offset = literal(rom,offset,jump);
+				instr = 0;
+				count = 0;
+			}
+			print("label: ",0,7);
+			print(program,i,l);
+			ln();
+			continue;
+		}
+		
+		op = opcode(&program[i],l-i);
+		if (op >= 0) {
+			// do literal opcode
+			instr = instr | (opcodes[op].value << 8*count);
+			++count;
+			print("opcode: ",0,8);
+			print(opcodes[op].name,0,opcodes[i].len);
+			ln();
+			if ( count % REGISTER_WIDTH == 0) {
+				offset = align(rom,instr,offset);
+				instr = 0;
+				count = 0;
+			}
+			i = l;
+			continue;
+		}
+
+		if (is_number(&program[i],l-i)) {
+			jump = atoll(&program[i]);	
+			fprintf(stderr,"literal: %ld\n",jump);
+			offset = literal(rom,offset,jump);
+			i = l + 1;
+			continue;	
+		}
+
+		print("unknown: ",0,9);
+		print(program,i,l);
+		ln();
+
+		i = l;
+		if (i >= size) break; 
 	}
+	align(rom,instr,offset);
+
 	save(imagename,rom);
 	return 0;
 }
