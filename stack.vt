@@ -1,0 +1,35 @@
+// avm.vt
+//
+
+
+module test;
+
+	reg clock;
+	reg dup;
+	reg drop;
+	reg [15:0] tos;
+	wire [15:0] _tos;
+
+	stack _stack( clock, drop, dup, tos, _tos );
+
+	always #5 clock = !clock;
+
+	initial begin
+
+		clock = 1'b0;
+		dup = 1'b0;
+		drop = 1'b0;
+		tos = 16'b0;
+
+		$dumpfile("dump.vcd");
+		$dumpvars(0,test);
+
+		#10 dup = 1;
+	
+		#10 dup = 0;
+
+		#60 $display("Done");
+		$finish;
+	end
+
+endmodule

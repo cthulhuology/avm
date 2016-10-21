@@ -46,11 +46,11 @@ module avm (
 	input [`BITS-1:0] ip_in,		// rom data in
 	output read_out,			// read active
 	output write_out,			// write active
-	output [BITS-1:0] src_addr_out,		// source ram addr
-	output [BITS-1:0] dst_addr_out,		// dest ram addr 
+	output [`BITS-1:0] src_addr_out,		// source ram addr
+	output [`BITS-1:0] dst_addr_out,		// dest ram addr 
 	output [`BITS-1:0] ip_addr_out,		// rom address
 	output [`BITS-1:0] data_out,		// dst data out
-	output [`PINS-1:0] io_out;		// hardware output
+	output [`PINS-1:0] io_out);		// hardware output
 	
 	// instruction
 	wire instre;				// instr read enable
@@ -76,10 +76,11 @@ module avm (
 	wire dste;				// write enable
 	wire srce;				// read enable
 
-	// TODO generate ROM
-	// TODO generate RAM
+`include "rom.v"
+`include "ram.v"
 	
 	// clock events
+	
 	
 	// TODO fetch instruction from ROM
 	// TODO update data stack
@@ -93,4 +94,4 @@ module avm (
 	// TODO update return stack pointers
 	// TODO update instruction pointer
 
-endmodule
+endmodule;
