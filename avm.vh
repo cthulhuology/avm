@@ -1,5 +1,5 @@
 
-`define BITS 64
+`define BITS 16
 `define PINS 16
-`define STACK_DEPTH 16
-`define STACK_PTR_WIDTH 4 
+`define DEPTH 16
+`define PTR 4 

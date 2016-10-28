@@ -1,0 +1,32 @@
+// alu.vt
+//
+
+module test;
+
+	reg [7:0] opcode;
+	reg clock;
+	reg [15:0] tos;
+	reg [15:0] nos;
+	wire [15:0] _tos;
+	
+	alu _alu(clock,opcode,tos,nos,_tos);
+
+	always #5 clock = !clock;
+
+	integer i;
+
+	initial begin
+		$dumpfile("dump.vcd");
+		$dumpvars(0,test);
+		$dumpvars(0,_alu);
+
+		clock = 1'b0;
+		tos = 16'b0;
+		nos = 16'b0;
+		opcode = 16'b0;
+
+		#60 $display("Done");
+		$finish;
+	end
+
+endmodule

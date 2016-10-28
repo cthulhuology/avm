@@ -8,7 +8,12 @@ test.img :
 	dd if=/dev/zero of=test.img bs=4096 count=1024
 	./avm test.avm test.img
 
-test:
+stack:
 	iverilog -Wall -g2005 -o stack.test stack.v stack.vt
 	./stack.test
+	gtkwave dump.vcd
+
+alu:
+	iverilog -Wall -g2005 -o alu.test alu.v alu.vt
+	./alu.test
 	gtkwave dump.vcd

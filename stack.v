@@ -35,25 +35,23 @@
 // THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-`define DEPTH 16
-`define WIDTH 16
-`define PTR 4
+`include "avm.vh"
 
-module stack( reset, clock_in, nip, dup, we, data_in, tos_out, nos_out);
+module stack( reset, clock, nip, dup, we, data_in, tos_out, nos_out);
 	input reset;
-	input clock_in;
+	input clock;
 	input nip;
 	input dup;
 	input we;
-	input [`WIDTH-1:0] data_in;
-	output [`WIDTH-1:0] tos_out;
-	output [`WIDTH-1:0] nos_out;
+	input [`BITS-1:0] data_in;
+	output [`BITS-1:0] tos_out;
+	output [`BITS-1:0] nos_out;
 	
-	reg [`WIDTH-1:0] nos;
-	reg [`WIDTH-1:0] tos;
+	reg [`BITS-1:0] nos;
+	reg [`BITS-1:0] tos;
 	reg [`PTR-1:0] sp;
 	reg [`PTR-1:0] nsp;
-	reg [`WIDTH-1:0] cells[`DEPTH-1:0];
+	reg [`BITS-1:0] cells[`DEPTH-1:0];
 
 	always @* begin
 		nsp = sp - 1;
@@ -62,14 +60,13 @@ module stack( reset, clock_in, nip, dup, we, data_in, tos_out, nos_out);
 	assign tos_out = cells[sp];
 	assign nos_out = cells[nsp];
 
-	always @(posedge clock_in) begin
+	always @(posedge clock) begin
 		if (reset) begin
 			sp = `PTR 'b0000;
-			cells[sp] =  `WIDTH 'b0;
-			tos = `WIDTH 'b0;
-			nos = `WIDTH 'b0;
+			cells[sp] =  `BITS 'b0;
+			tos = `BITS 'b0;
+			nos = `BITS 'b0;
 		end
-
 
 		tos = cells[sp];
 		nos = cells[nsp];
