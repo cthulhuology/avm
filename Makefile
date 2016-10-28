@@ -1,3 +1,4 @@
+.PHONY: clean stack alu
 
 all : avm
 
@@ -17,3 +18,6 @@ alu:
 	iverilog -Wall -g2005 -o alu.test alu.v alu.vt
 	./alu.test
 	gtkwave dump.vcd
+
+clean:
+	rm -f *.test *.vcd *.out avm
