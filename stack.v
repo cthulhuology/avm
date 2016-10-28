@@ -39,30 +39,60 @@
 `define WIDTH 16
 `define PTR 4
 
-module stack( clock_in, drop, dup, data_in, data_out);
-	input clock_in;                                                        
-	input drop;                                                           
+module stack( reset, clock_in, nip, dup, we, data_in, tos_out, nos_out);
+	input reset;
+	input clock_in;
+	input nip;
 	input dup;
+	input we;
 	input [`WIDTH-1:0] data_in;
-	output [`WIDTH-1:0] data_out;                      
+	output [`WIDTH-1:0] tos_out;
+	output [`WIDTH-1:0] nos_out;
+	
+	reg [`WIDTH-1:0] nos;
+	reg [`WIDTH-1:0] tos;
+	reg [`PTR-1:0] sp;
+	reg [`PTR-1:0] nsp;
+	reg [`WIDTH-1:0] cells[`DEPTH-1:0];
 
-	reg tos;
-	reg [`WIDTH-1:0] sp;
-	reg [`WIDTH-1:0] cells[`DEPTH-1:0];                                       
-
-	always @* begin   
-		if (drop)
-			sp = sp - 1;                                           
-		if (dup)
-			sp = sp + 1;
-
-		cells[sp] <= tos;
+	always @* begin
+		nsp = sp - 1;
 	end
 
-	assign data_out = cells[sp];
+	assign tos_out = cells[sp];
+	assign nos_out = cells[nsp];
 
 	always @(posedge clock_in) begin
-		tos = data_in;                                      			
+		if (reset) begin
+			sp = `PTR 'b0000;
+			cells[sp] =  `WIDTH 'b0;
+			tos = `WIDTH 'b0;
+			nos = `WIDTH 'b0;
+		end
+
+
+		tos = cells[sp];
+		nos = cells[nsp];
+
+		if (nip & !dup) begin	// nip
+			sp = sp - 1;
+		end
+
+		if (dup & !nip) begin	// dup
+			sp = sp + 1;
+		end
+
+		if (dup & nip) begin	// swap
+			cells[nsp] = tos;
+			tos = nos;	
+		end
+
+		if (we) begin
+			tos = data_in;
+		end
+	
+		cells[sp] = tos;
+	
 	end
 
 endmodule

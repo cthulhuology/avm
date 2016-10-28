@@ -4,29 +4,64 @@
 
 module test;
 
+	reg reset;
 	reg clock;
 	reg dup;
-	reg drop;
+	reg nip;
+	reg write;
 	reg [15:0] tos;
 	wire [15:0] _tos;
-
-	stack _stack( clock, drop, dup, tos, _tos );
+	wire [15:0] _nos;
+	
+	stack _stack( reset, clock, nip, dup, write, tos, _tos, _nos );
 
 	always #5 clock = !clock;
 
+	integer i;
+
 	initial begin
-
-		clock = 1'b0;
-		dup = 1'b0;
-		drop = 1'b0;
-		tos = 16'b0;
-
 		$dumpfile("dump.vcd");
 		$dumpvars(0,test);
+		for( i = 0; i < 16; i = i + 1) $dumpvars(0,_stack.cells[i]);
 
-		#10 dup = 1;
+		reset = 1'b0;
+		clock = 1'b0;
+		dup = 1'b0;
+		nip = 1'b0;
+		tos = 16'b0;
+		write = 1'b0;
+
+		#5 reset = 0;
+
+		#10 reset = 1;
 	
+		#5 reset = 0;	
+		
+		#10 tos = 3; write = 1;		// write 3 to tos
+
+		#10 write = 0;
+
+		#10 dup = 1;			// dup 3 (3,3)
+
 		#10 dup = 0;
+		
+		#10 tos = 12; write = 1;	// write 12 to tos (3,12)
+
+		#10 write = 0;
+
+		#10 nip = 1;			// nip 3, (12)
+
+		#10 nip = 1;			// nip no value (12)
+	
+		#10 nip = 0;	
+
+		#10 dup = 1; write = 1; tos = 16'hff;	// push 255 on stack
+	
+		#10 write = 0; dup = 0;
+	
+		#10 dup = 1; nip = 1;		// swap
+
+		#10 dup = 0; nip = 0;
 
 		#60 $display("Done");
 		$finish;
