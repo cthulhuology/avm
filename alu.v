@@ -43,11 +43,15 @@ module alu (
 	input [7:0] opcode,
 	input [`BITS-1:0] tos,
 	input [`BITS-1:0] nos,
-	output [`BITS-1:0] alu_out);
+	output [`BITS-1:0] alu_tos,
+	output [`BITS-1:0] alu_nos);
 
 	reg [`BITS-1:0] _tos;
+	reg [`BITS-1:0] _nos;
+	reg [`BITS*2-1:0] _mul;
 
-	assign alu_out = _tos;
+	assign alu_tos = _tos;
+	assign alu_nos = _nos;
 	
 	always @(posedge clock) begin
 	case(opcode)
@@ -57,10 +61,16 @@ module alu (
 	8'b0000_0101:
 		_tos <= nos + tos;
 	8'b0000_0110:
-		_tos <= nos * tos;
+		begin
+			_mul = nos * tos;
+			_tos <= _mul[`BITS-1:0];
+			_nos <= _mul[(`BITS*2)-1:`BITS];
+		end
 	8'b0000_0111:
-		_tos <= nos / tos;
-
+		begin
+			_tos <= nos / tos;
+			_nos <= nos % tos;
+		end
 	// logic
 	8'b0000_1000:
 		_tos <= ~ tos;

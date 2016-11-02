@@ -1,15 +1,18 @@
 // alu.vt
 //
 
+`include "avm.vh"
+
 module test;
 
 	reg [7:0] opcode;
 	reg clock;
-	reg [15:0] tos;
-	reg [15:0] nos;
-	wire [15:0] _tos;
+	reg [`BITS-1:0] tos;
+	reg [`BITS-1:0] nos;
+	wire [`BITS-1:0] _tos;
+	wire [`BITS-1:0] _nos;
 	
-	alu _alu(clock,opcode,tos,nos,_tos);
+	alu _alu(clock,opcode,tos,nos,_tos,_nos);
 
 	always #5 clock = !clock;
 
@@ -21,9 +24,126 @@ module test;
 		$dumpvars(0,_alu);
 
 		clock = 1'b0;
-		tos = 16'b0;
-		nos = 16'b0;
-		opcode = 16'b0;
+		tos = 0;
+		nos = 0;
+		opcode = 0;
+
+		// negative 0
+		#5 tos= 0; opcode = 8'b0000_0100;
+		
+		// negative 1
+		#10 tos = 1;
+
+		// negative 2
+		#10 tos = 2;
+
+		// negative -1
+		#10 tos = -1;
+
+		// not 0
+		#10 tos = 0; opcode = 8'b0000_1000;
+		
+		// not 1
+		#10 tos = 1;
+
+		// not 2
+		#10 tos = 2;
+
+		// not -1
+		#10 tos = -1;
+
+		// 0 + 0
+		#10 tos = 0; nos = 0; opcode = 8'b0000_0101;
+		
+		// 1 + 0
+		#10 tos = 1; nos = 0;
+		
+		// 1 + 1
+		#10 tos = 1; nos = 1;
+
+		// -1 + 1 
+		#10 tos = -1; nos = 1;
+
+		// -1 + -1
+		#10 tos = -1; nos = -1;
+
+		// 0 * 0
+		#10 tos = 0; nos = 0; opcode = 8'b0000_0110;
+		
+		// 1 * 0
+		#10 tos = 1; nos = 0;
+		
+		// 1 * 1
+		#10 tos = 1; nos = 1;
+
+		// -1 * 1 
+		#10 tos = -1; nos = 1;
+
+		// -1 * -1
+		#10 tos = -1; nos = -1;
+
+		// 0 / 0
+		#10 tos = 0; nos = 0; opcode = 8'b0000_0111;
+		
+		// 0 / 1
+		#10 tos = 1; nos = 0;
+		
+		// 1 * 1
+		#10 tos = 1; nos = 1;
+
+		// 1 / -1 
+		#10 tos = -1; nos = 1;
+
+		// -1 / -1
+		#10 tos = -1; nos = -1;
+
+		// 7 / 2
+		#10 tos = 2; nos = 7;
+
+		// 0 & 0
+		#10 tos = 0; nos = 0; opcode = 8'b0000_1001;
+		
+		// 1 & 0
+		#10 tos = 1; nos = 0;
+		
+		// 1 & 1
+		#10 tos = 1; nos = 1;
+
+		// -1 & 1 
+		#10 tos = -1; nos = 1;
+
+		// -1 & -1
+		#10 tos = -1; nos = -1;
+
+		// 0 | 0
+		#10 tos = 0; nos = 0; opcode = 8'b0000_1010;
+		
+		// 1 | 0
+		#10 tos = 1; nos = 0;
+		
+		// 1 | 1
+		#10 tos = 1; nos = 1;
+
+		// -1 | 1 
+		#10 tos = -1; nos = 1;
+
+		// -1 | -1
+		#10 tos = -1; nos = -1;
+
+		// 0 ^ 0
+		#10 tos = 0; nos = 0; opcode = 8'b0000_1011;
+		
+		// 1 ^ 0
+		#10 tos = 1; nos = 0;
+		
+		// 1 ^ 1
+		#10 tos = 1; nos = 1;
+
+		// -1 ^ 1 
+		#10 tos = -1; nos = 1;
+
+		// -1 ^ -1
+		#10 tos = -1; nos = -1;
 
 		#60 $display("Done");
 		$finish;
