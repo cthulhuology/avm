@@ -46,15 +46,17 @@
 #define SIZE_OF_STACK 16
 #define PTR_WIDTH 4
 #define PTR_MASK 0x0f
-#define RAM_SIZE 1024*4096
-#define LITERAL_MASK 0x8000000000000000LL
+#define RAM_SIZE 4096
+#define LITERAL_MASK 0x8000
 #define MAX_FILES 2
 #define MAX_WORDS 1024
 #define MAX_OPCODE 32
-#define REGISTER_WIDTH 8
+#define REGISTER_WIDTH 2
+
+typedef short cell;
 
 struct {
-	long value;
+	char value;
 	char name[8];
 	long len;
 } opcodes[32] = {
@@ -93,15 +95,15 @@ struct {
 };
 
 struct {
-	uint64_t is;
-	long ip;
-	long dsp;
-	long rsp;
-	long dst;
-	long src;
-	long flg;
-	long ds[SIZE_OF_STACK];
-	long rs[SIZE_OF_STACK];
+	cell is;
+	cell ip;
+	cell dsp;
+	cell rsp;
+	cell dst;
+	cell src;
+	cell flg;
+	cell ds[SIZE_OF_STACK];
+	cell rs[SIZE_OF_STACK];
 } registers;
 
 char* memory;
@@ -154,7 +156,6 @@ char* loadro(char* filename) {
 	files[filep].size = st.st_size;
 	++filep;
 	return program;		
-
 }
 
 char* load(char* filename) {
@@ -181,9 +182,9 @@ void save(char* filename, char* data) {
 }
 
 int interpret(char* filename) {
-	int op;
-	long a, b;
-	uint64_t* rom = (uint64_t*)load(filename);
+	cell op;
+	cell a, b;
+	cell* rom = (cell*)load(filename);
 	boot();
 fetch:
 	registers.is = rom[registers.ip];				// we have up to 8 instructions in the is register.
@@ -485,9 +486,9 @@ int colon(char* stream, int offset) {
 	return stream[offset] == ':';
 }
 
-long align(char* image, uint64_t *instr, long *count, long offset) {
+long align(char* image, cell *instr, long *count, long offset) {
 	if(!instr || !*instr) return offset;		// instr is all nops	
-	uint64_t* ptr = (uint64_t*)&image[offset];
+	cell* ptr = (cell*)&image[offset];
 	*ptr = *instr;
 	*instr = 0;
 	*count = 0;
@@ -496,7 +497,7 @@ long align(char* image, uint64_t *instr, long *count, long offset) {
 
 
 long literal(char* image, long offset, long value) {
-	uint64_t* ptr = (uint64_t*)&image[offset];
+	cell* ptr = (cell*)&image[offset];
 	*ptr = value | LITERAL_MASK;
 	return offset + REGISTER_WIDTH;
 }
@@ -513,9 +514,9 @@ int compile(char* filename, char* imagename) {
 	long word = 0;
 	char error[1024];
 	long done = 0;
-	long addr = 0;
-	long op = 0;
-	uint64_t instr = 0;
+	cell addr = 0;
+	cell op = 0;
+	cell instr = 0;
 	long count = 0;
 	long jump = 0;
 	
@@ -541,10 +542,11 @@ int compile(char* filename, char* imagename) {
 		if (addr >= 0) {
 			// do create a label literal
 			offset = align(rom,&instr,&count,offset);
-			jump = (offset + 8) - addr;
-			if ( jump < 0 ) {		// forward jump
+			jump = offset - addr;
+	 in
+		if ( jump < 0 ) {		// forward jump
 				offset = literal(rom,offset,-jump);
-				offset += 8;
+				offset += 2;
 				instr = opcode("-",1);	// append a negate operation
 				count = 1;
 			} else {			// backwards jump, common case
