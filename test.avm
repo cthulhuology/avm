@@ -1,0 +1,6 @@
+: start
+	100 dup ! ;
+
+: hello
+	2 2 * hello .
+
