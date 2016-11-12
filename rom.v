@@ -1,8 +1,8 @@
 // rom.v
 // 
-// 16bit ram block with 4k of memory
+// 16bit rom block with 4k of memory
 //
-// AVM ram block in Verilog 
+// AVM rom block in Verilog 
 //
 // This is an implementation of AVM in C for experimenation purposes.
 // It is both an AVM interpretr and an assembler for the instruction set.
@@ -40,7 +40,7 @@
 
 `include "avm.vh"
 
-module ram (
+module rom (
 	input clock,
 	input re,
 	input [`BITS-1:0] src_addr,

@@ -3,7 +3,7 @@
 
 `include "avm.vh"
 
-module test;
+module alu_test;
 
 	reg [7:0] opcode;
 	reg clock;
